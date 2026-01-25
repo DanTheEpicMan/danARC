@@ -20,8 +20,6 @@ namespace off {
     // From SceneComponent (RootComponent)
     pr POS_PTR = 0x1D0;
 
-    // Known VTables
-    pr VT_PLAYER = 0x14bde8a30;
 }
 
 namespace vtabels {

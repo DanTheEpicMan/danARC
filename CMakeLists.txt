@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20) # Changed to 3.20 (4.1 doesn't exist yet)
+cmake_minimum_required(VERSION 4.1) # Changed to 3.20 (4.1 doesn't exist yet)
 project(danARC)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -17,6 +17,7 @@ set(IMGUI_SOURCES
         ${IMGUI_DIR}/imgui_widgets.cpp
         ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
         ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+        ESP/ESP.h
 )
 
 # --- 2. ADD EXECUTABLE WITH IMGUI SOURCES ---
