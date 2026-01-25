@@ -60,7 +60,7 @@ bool InitOverlay() {
     SCREEN_H = mode->height;
 
     // Create Window
-    window = glfwCreateWindow(SCREEN_W, SCREEN_H, "ArcOverlay", nullptr, nullptr);
+    window = glfwCreateWindow(SCREEN_W, SCREEN_H, "Better Discord Overlay", nullptr, nullptr);
     if (!window) return false;
 
     // 4. Setup Context

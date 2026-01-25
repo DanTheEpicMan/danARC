@@ -1,114 +1,149 @@
 #include <filesystem>
 #include <iostream>
+#include <vector>
+#include <cmath>
 #include "memory/memory.h"
 #include "utils/localUtil.h"
-#include <vector>
-#include <thread>
-#include <cfloat>
+#include "utils/Overlay.h" // Include our overlay header
 
-#define DBGPrint true
 
-#ifdef DBGPrint
-#define DBG(x) std::cout << x << std::endl;
-#else
-#define DBG(x)
-#endif
 
 int main() {
-    ProcessId = FindGamePID();
-    BaseAddress = 0x140000000;
-
-    if (ProcessId == 0) {
-        DBG("[-] Game not found!")
+    if (!InitOverlay()) {
+        std::cerr << "[-] Failed to init Overlay (GLFW/Wayland)" << std::endl;
         return 1;
     }
 
-    DBG("[+] PID: " << ProcessId)
+    ProcessId = FindGamePID();
+    uintptr_t BaseAddress = 0x140000000;
 
-    ptr localPlayerPtr = 0;
+    std::cout << "[+] Waiting for game..." << std::endl;
 
-    while (true) {
-        ptr uworld = GetUWorld(BaseAddress);
-        if (!isValidPtr(uworld)) {
-            DBG("[-] UWorld is Invalid! " << std::hex << uworld << std::dec)
-            localPlayerPtr = 0;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-        }
+    while (!glfwWindowShouldClose(window)) {
 
-        // Get view matrix
-        ptr viewInfoPtr = ReadMemory<ptr>(uworld + off::CACHED_VIEW_INFO_PTR);
-        if (!isValidPtr(viewInfoPtr)) {
-            DBG("[-] Failed to get View Info")
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-        }
+        std::vector<RenderEntity> entities;
+        Matrix4x4 projMatrix = {0}; // Needs to be filled for W2S
+        bool dataValid = false;
+        Vector3 camPos = {0,0,0};
 
-        Matrix4x4 viewMatrix = ReadMemory<Matrix4x4>(viewInfoPtr + 0);
-        Vector3 camPos = GetCameraLocation(viewMatrix);
+        // Retry PID if game closed
+        if (ProcessId == 0) ProcessId = FindGamePID();
 
-        // Get PersistentLevel
-        ptr persistentLevel = ReadMemory<ptr>(uworld + off::PERSISTENT_LEVEL);
-        if (!isValidPtr(persistentLevel)) {
-            DBG("[-] PersistentLevel invalid")
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-        }
+        if (ProcessId != 0) {
+            ptr uworld = GetUWorld(BaseAddress);
 
-        ptr actors = ReadMemory<ptr>(persistentLevel + off::ACTORS_PTR);
-        int actorsCount = ReadMemory<int>(persistentLevel + off::ACTORS_PTR + 0x8);
+            if (isValidPtr(uworld)) {
+                ptr viewInfoPtr = ReadMemory<ptr>(uworld + off::CACHED_VIEW_INFO_PTR);
 
-        if (!isValidPtr(actors) || actorsCount < 1 || actorsCount > 5000) {
-            DBG("[-] Actors invalid")
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-        }
+                if (isValidPtr(viewInfoPtr)) {
+                    // Read Matrices
+                    // Offset 0 = ViewMatrix (Cam Pos)
+                    // Offset 256 = ViewProjectionMatrix (WorldToScreen)
+                    Matrix4x4 viewMatrix = ReadMemory<Matrix4x4>(viewInfoPtr + 0); //for pos (for filtering out Local Player)
+                    projMatrix = ReadMemory<Matrix4x4>(viewInfoPtr + 256);
 
-        double closestDist = DBL_MAX;
-        std::vector<Player> players{};
+                    camPos = GetCameraLocation(viewMatrix);
+                    dataValid = true;
 
-        for (int a = 0; a < actorsCount; a++) {
-            ptr actor = ReadMemory<ptr>(actors + (a * 0x8));
-            if (!isValidPtr(actor)) continue;
+                    // Actors Loop
+                    ptr persistentLevel = ReadMemory<ptr>(uworld + off::PERSISTENT_LEVEL);
+                    if (isValidPtr(persistentLevel)) {
+                        ptr actors = ReadMemory<ptr>(persistentLevel + off::ACTORS_PTR);
+                        int actorsCount = ReadMemory<int>(persistentLevel + off::ACTORS_PTR + 0x8);
 
-            ptr rootComp = ReadMemory<ptr>(actor + off::ROOT_COMPONENT_PTR);
-            if (!isValidPtr(rootComp)) continue;
+                        if (isValidPtr(actors) && actorsCount > 0 && actorsCount < 5000) {
 
-            Vector3 pos = ReadMemory<Vector3>(rootComp + off::POS_PTR);
-            if (std::abs(pos.x) < 100 || std::abs(pos.x) > 1e8) continue;
+                            // Loop
+                            for (int a = 0; a < actorsCount; a++) {
+                                ptr actor = ReadMemory<ptr>(actors + (a * 0x8));
+                                if (!isValidPtr(actor)) continue;
 
-            double dist = camPos.Dist(pos);
+                                ptr rootComp = ReadMemory<ptr>(actor + off::ROOT_COMPONENT_PTR);
+                                if (!isValidPtr(rootComp)) continue;
 
-            // Find local player (closest to camera)
-            if (dist < closestDist) {
-                closestDist = dist;
-                localPlayerPtr = actor;
+                                Vector3 pos = ReadMemory<Vector3>(rootComp + off::POS_PTR);
+                                if (std::abs(pos.x) < 100) continue; // Skip 0,0,0
+
+                                double dist = camPos.Dist(pos);
+                                ptr vt = ReadMemory<ptr>(actor);
+
+                                RenderEntity ent;
+                                ent.pos = pos;
+                                ent.dist = (float)dist;
+
+#if VT_FIND_MODE
+                                ent.vt = vt;
+#else
+                                //validity checks
+                                if (vt != off::VT_PLAYER) continue; //is not player
+                                if (dist < 100.0f) continue; //is LP
+#endif
+                                entities.push_back(ent);
+                            }
+                        }
+                    }
+                }
             }
+        }
+        // --- LOGIC END ---
 
-            // Check if this is a player by VTable
-            ptr vt = ReadMemory<ptr>(actor);
-            if (vt != off::VT_PLAYER) continue;
+        // --- RENDER START ---
+        RenderBegin();
 
-            // Skip local player
-            if (actor == localPlayerPtr) continue;
+        if (dataValid) {
+            // Stats
+            char buf[64];
+            sprintf(buf, "Enemies: %lu", entities.size());
+            DrawTextImGui(10, 10, IM_COL32(255, 0, 0, 255), buf);
 
-            Player pl{};
-            pl.pos = pos;
-            players.push_back(pl);
+            for (const auto& ent : entities) {
+                Vector2 s;
+                if (WorldToScreen(ent.pos, s, projMatrix)) {
+
+
+                    ImU32 color = IM_COL32(255, 0, 0, 255);
+
+                    // Simple Box Calculation
+                    // 100 unreal units ~= 1 meter. Assuming player height ~1.8m (180 units)
+                    float distM = ent.dist / 100.0f;
+                    if (distM < 1.0f) distM = 1.0f;
+
+                    float headHeight = 180.0f;
+                    // Project head and feet to get precise box height
+                    Vector3 headPos = ent.pos; headPos.z += 90; // Approx top
+                    Vector3 feetPos = ent.pos; feetPos.z -= 90; // Approx bottom
+
+#if VT_FIND_MODE
+                    Vector2 sBase{};
+                    if (WorldToScreen(feetPos, sBase, projMatrix)) {
+                        char vtBuf[32];
+                        sprintf(vtBuf, "0x%lx", ent.vt);
+                        DrawTextImGui(sBase.x, sBase.y, IM_COL32(255, 255, 255, 255), vtBuf);
+                    }
+#endif
+
+                    Vector2 sHead, sFeet;
+                    if (WorldToScreen(headPos, sHead, projMatrix) && WorldToScreen(feetPos, sFeet, projMatrix)) {
+                        float h = sFeet.y - sHead.y;
+                        float w = h / 2.0f;
+
+                        DrawBox(sHead.x - w/2, sHead.y, w, h, color);
+
+                        // Distance Text
+                        char dBuf[32];
+                        sprintf(dBuf, "%.0fm", distM);
+                        DrawTextImGui(sHead.x - w/2, sHead.y - 15, IM_COL32(255, 255, 255, 255), dBuf);
+                    }
+                }
+            }
+        } else {
+            DrawTextImGui(10, 10, IM_COL32(255, 255, 0, 255), "Waiting for Game / Memory...");
         }
 
-        DBG("[+] Camera: " << camPos.x << ", " << camPos.y << ", " << camPos.z)
-        DBG("[+] LocalPlayer: 0x" << std::hex << localPlayerPtr << std::dec << " dist: " << closestDist)
-        DBG("[+] Players found: " << players.size())
-
-        for (const auto& p : players) {
-            double d = camPos.Dist(p.pos);
-            DBG("    Player at: " << p.pos.x << ", " << p.pos.y << ", " << p.pos.z << " (dist: " << d << ")")
-        }
-
-        DBG("---")
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        RenderEnd();
     }
 
+    // Clean exit
+    glfwTerminate();
     return 0;
 }

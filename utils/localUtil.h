@@ -8,6 +8,7 @@
 #include "../offsets.h"
 #include "../memory/memory.h"
 #include "gameUtil.h"
+#include "Overlay.h"
 
 struct Player {
     Vector3 pos; //feet
@@ -100,21 +101,29 @@ Vector3 GetCameraLocation(const Matrix4x4& viewMatrix) {
         -(tx * m20 + ty * m21 + tz * m22)
     };
 }
+// Simple struct for rendering
+struct RenderEntity {
+    Vector3 pos;
+    float dist;
+    ptr vt{};
+};
 
-bool WorldToScreen(Vector3 worldPos, Matrix4x4 matrix, int screenW, int screenH, ScreenPos& out) {
-    float clipX = worldPos.x * matrix.m[0][0] + worldPos.y * matrix.m[1][0] + worldPos.z * matrix.m[2][0] + matrix.m[3][0];
-    float clipY = worldPos.x * matrix.m[0][1] + worldPos.y * matrix.m[1][1] + worldPos.z * matrix.m[2][1] + matrix.m[3][1];
-    float clipW = worldPos.x * matrix.m[0][3] + worldPos.y * matrix.m[1][3] + worldPos.z * matrix.m[2][3] + matrix.m[3][3];
+// Standard UE5 WorldToScreen
+// Returns true if on screen, false if behind
+bool WorldToScreen(Vector3 world, Vector2& screen, Matrix4x4 matrix) {
+    float w = matrix.m[0][3] * world.x + matrix.m[1][3] * world.y + matrix.m[2][3] * world.z + matrix.m[3][3];
 
-    if (clipW < 0.01f) return false;
+    if (w < 0.01f) return false; // Behind camera
 
-    float ndcX = clipX / clipW;
-    float ndcY = clipY / clipW;
+    float x = matrix.m[0][0] * world.x + matrix.m[1][0] * world.y + matrix.m[2][0] * world.z + matrix.m[3][0];
+    float y = matrix.m[0][1] * world.x + matrix.m[1][1] * world.y + matrix.m[2][1] * world.z + matrix.m[3][1];
 
-    // Standard NDC to Screen conversion
-    out.x = (screenW / 2.0f) + (ndcX * (screenW / 2.0f));
-    out.y = (screenH / 2.0f) - (ndcY * (screenH / 2.0f));
+    float invW = 1.0f / w;
+    float ndc_x = x * invW;
+    float ndc_y = y * invW;
 
+    screen.x = (SCREEN_W / 2.0f) * (1.0f + ndc_x);
+    screen.y = (SCREEN_H / 2.0f) * (1.0f - ndc_y);
     return true;
 }
 
