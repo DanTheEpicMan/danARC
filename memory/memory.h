@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <stdint.h>
+#include "../utils/gameUtil.h"
 
 // Initialize memory access to the target process
 bool InitializeMemoryAccess();

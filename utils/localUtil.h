@@ -1,22 +1,29 @@
 #ifndef DANARC_LOCALUTIL_H
 #define DANARC_LOCALUTIL_H
+#include <cmath>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 
 #include "../offsets.h"
 #include "../memory/memory.h"
 #include "gameUtil.h"
 
+struct Player {
+    Vector3 pos; //feet
+};
+
 bool isValidPtr(ptr addr) {
-    if (addr < 0x10000 || addr > 0x100000000000) return false;
+    if (addr < 0x10000 || addr > 0x800000000000) return false;
     return true;
 }
 
-inline uintptr_t GetUWorld(ptr BaseAddr) {
-    // Double pointer dereference: BASE + offset -> intermediate ptr -> UWorld
-    ptr uworldPtrBase = ReadMemory<uintptr_t>(BaseAddr + off::UWORLD_PTR_BASE);
 
-    ptr uworldAddr = ReadMemory<uintptr_t>(uworldPtrBase + off::UWORLD_PTR_DEREF);
+//prob update every game update
+inline uintptr_t GetUWorld(ptr BaseAddr) {
+    ptr uworldPtrBase = ReadMemory<uintptr_t>(BaseAddr + 0x0DC77CB8);
+
+    ptr uworldAddr = ReadMemory<uintptr_t>(uworldPtrBase + 0xC0);
 
     return uworldAddr;
 }
@@ -68,6 +75,30 @@ pid_t FindGamePID() {
 
     std::cerr << "[-] Game process not found!" << std::endl;
     return 0;
+}
+
+Vector3 GetCameraLocation(const Matrix4x4& viewMatrix) {
+    // The View Matrix transforms World -> Camera.
+    // It is effectively: [ R   0 ]
+    //                    [ T   1 ]
+    // To get the Camera World Position, we calculate: -Transpose(R) * T
+
+    // Assuming UE5 Column-Major layout where m[3] is the translation column:
+    double m00 = viewMatrix.m[0][0], m01 = viewMatrix.m[0][1], m02 = viewMatrix.m[0][2];
+    double m10 = viewMatrix.m[1][0], m11 = viewMatrix.m[1][1], m12 = viewMatrix.m[1][2];
+    double m20 = viewMatrix.m[2][0], m21 = viewMatrix.m[2][1], m22 = viewMatrix.m[2][2];
+
+    // Translation vector (usually the 4th column in UE / OpenGL style)
+    double tx = viewMatrix.m[3][0];
+    double ty = viewMatrix.m[3][1];
+    double tz = viewMatrix.m[3][2];
+
+    // Calculate inverted position
+    return Vector3{
+        -(tx * m00 + ty * m01 + tz * m02),
+        -(tx * m10 + ty * m11 + tz * m12),
+        -(tx * m20 + ty * m21 + tz * m22)
+    };
 }
 
 bool WorldToScreen(Vector3 worldPos, Matrix4x4 matrix, int screenW, int screenH, ScreenPos& out) {
