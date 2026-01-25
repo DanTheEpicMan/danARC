@@ -48,6 +48,7 @@ bool InitOverlay() {
     // CRITICAL: This is what makes the window "Click-Through" on Wayland
     glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, GLFW_TRUE);
     glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+    glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
 
     // Get Resolution
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -63,8 +64,11 @@ bool InitOverlay() {
     window = glfwCreateWindow(SCREEN_W, SCREEN_H, "Better Discord Overlay", nullptr, nullptr);
     if (!window) return false;
 
+    glfwSetWindowPos(window, 0, 0);
+
     // 4. Setup Context
     glfwMakeContextCurrent(window);
+    glfwSetWindowAttrib(window, GLFW_MOUSE_PASSTHROUGH, GLFW_TRUE);
     glfwSwapInterval(1); // VSync
     glfwShowWindow(window);
 
@@ -111,6 +115,10 @@ void RenderEnd() {
     glfwSwapBuffers(window);
 }
 
+void DrawCircleFilled(float x, float y, float radius, ImU32 color) {
+    ImGui::GetBackgroundDrawList()->AddCircleFilled(ImVec2(x, y), radius, color, 0);
+}
+
 void DrawBox(float x, float y, float w, float h, ImU32 color, float thickness = 1.5f) {
     ImGui::GetBackgroundDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), color, 0.0f, 0, thickness);
 }
@@ -121,4 +129,10 @@ void DrawLine(float x1, float y1, float x2, float y2, ImU32 color, float thickne
 
 void DrawTextImGui(float x, float y, ImU32 color, const char* text) {
     ImGui::GetBackgroundDrawList()->AddText(ImVec2(x, y), color, text);
+}
+
+void DrawTextCentered(float x, float y, ImU32 color, const char* text) {
+    ImVec2 textSize = ImGui::CalcTextSize(text);
+    ImVec2 pos = ImVec2(x - (textSize.x / 2.0f), y - (textSize.y / 2.0f));
+    ImGui::GetBackgroundDrawList()->AddText(pos, color, text);
 }

@@ -2,11 +2,17 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <variant>
+
 #include "memory/memory.h"
 #include "utils/localUtil.h"
 #include "utils/Overlay.h" // Include our overlay header
 
-
+//-------------------Config-------------------//
+double maxPlayerDist = 400;          //in meters
+double maxArcDist = 200;              //in meters
+double maxLootDist = 70;              //in meters
+//----------------------------------------------
 
 int main() {
     if (!InitOverlay()) {
@@ -73,10 +79,17 @@ int main() {
 
 #if VT_FIND_MODE
                                 ent.vt = vt;
+                                if (ent.dist > 50/*meters*/ * 100/*conversion*/) continue; //skip to declutter screen
 #else
                                 //validity checks
-                                if (vt != off::VT_PLAYER) continue; //is not player
-                                if (dist < 100.0f) continue; //is LP
+                                if (dist < 300.0f) continue; //is LP
+
+                                if (vt == vtabels::PLAYER) {ent.type = Object::PLAYER;}
+                                else if (vt == vtabels::ARC) {ent.type = Object::ARC;}
+                                else if (vt == vtabels::PICKUP) {ent.type = Object::PICKUP;}
+                                else if (vt == vtabels::SEARCH) {ent.type = Object::SEARCH;}
+                                else {continue;}
+
 #endif
                                 entities.push_back(ent);
                             }
@@ -99,41 +112,56 @@ int main() {
             for (const auto& ent : entities) {
                 Vector2 s;
                 if (WorldToScreen(ent.pos, s, projMatrix)) {
+                    ImU32 color{};
 
-
-                    ImU32 color = IM_COL32(255, 0, 0, 255);
-
-                    // Simple Box Calculation
-                    // 100 unreal units ~= 1 meter. Assuming player height ~1.8m (180 units)
                     float distM = ent.dist / 100.0f;
                     if (distM < 1.0f) distM = 1.0f;
 
-                    float headHeight = 180.0f;
-                    // Project head and feet to get precise box height
-                    Vector3 headPos = ent.pos; headPos.z += 90; // Approx top
-                    Vector3 feetPos = ent.pos; feetPos.z -= 90; // Approx bottom
+                    if (ent.type == Object::PLAYER) {
+                        color = IM_COL32(255, 50, 50, 255);
+
+                        float headHeight = 180.0f;
+                        // Project head and feet to get precise box height
+                        Vector3 headPos = ent.pos; headPos.z += 90; // Approx top
+                        Vector3 feetPos = ent.pos; feetPos.z -= 90; // Approx bottom
 
 #if VT_FIND_MODE
-                    Vector2 sBase{};
-                    if (WorldToScreen(feetPos, sBase, projMatrix)) {
                         char vtBuf[32];
                         sprintf(vtBuf, "0x%lx", ent.vt);
-                        DrawTextImGui(sBase.x, sBase.y, IM_COL32(255, 255, 255, 255), vtBuf);
-                    }
+                        DrawTextImGui(s.x, s.y, IM_COL32(255, 255, 255, 255), vtBuf);
 #endif
 
-                    Vector2 sHead, sFeet;
-                    if (WorldToScreen(headPos, sHead, projMatrix) && WorldToScreen(feetPos, sFeet, projMatrix)) {
-                        float h = sFeet.y - sHead.y;
-                        float w = h / 2.0f;
+                        Vector2 sHead, sFeet;
+                        if (WorldToScreen(headPos, sHead, projMatrix) && WorldToScreen(feetPos, sFeet, projMatrix)) {
+                            float h = sFeet.y - sHead.y;
+                            float w = h / 2.0f;
 
-                        DrawBox(sHead.x - w/2, sHead.y, w, h, color);
+                            DrawBox(sHead.x - w/2, sHead.y, w, h, color);
 
-                        // Distance Text
+                            // Distance Text
+                            char dBuf[32];
+                            sprintf(dBuf, "%.0fm", distM);
+                            DrawTextCentered(sHead.x - w/2, sHead.y - 15, IM_COL32(255, 255, 255, 255), dBuf);
+                        } //if W2S
+                    } else {
+                        int radius = 5;
+                        if (ent.type == Object::ARC) {
+                            if (ent.dist > maxArcDist) continue;
+                            color = IM_COL32(200, 200, 50, 255);
+                            radius = (ent.dist / maxArcDist) * 9 + 1;
+                        } else if (ent.type == Object::PICKUP || ent.type == Object::SEARCH) {
+                            if (ent.dist > maxLootDist) continue;
+                            color = IM_COL32(50, 200, 50, 255);
+                            radius = (ent.dist / maxLootDist) * 9 + 1;
+                        }
+
+                        //draw
+                        DrawCircleFilled(s.x, s.y, radius, color);
                         char dBuf[32];
                         sprintf(dBuf, "%.0fm", distM);
-                        DrawTextImGui(sHead.x - w/2, sHead.y - 15, IM_COL32(255, 255, 255, 255), dBuf);
+                        DrawTextCentered(s.x, s.y-radius-2, IM_COL32(255, 255, 255, 255), dBuf);
                     }
+
                 }
             }
         } else {

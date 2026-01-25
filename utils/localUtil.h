@@ -10,10 +10,6 @@
 #include "gameUtil.h"
 #include "Overlay.h"
 
-struct Player {
-    Vector3 pos; //feet
-};
-
 bool isValidPtr(ptr addr) {
     if (addr < 0x10000 || addr > 0x800000000000) return false;
     return true;
@@ -101,11 +97,20 @@ Vector3 GetCameraLocation(const Matrix4x4& viewMatrix) {
         -(tx * m20 + ty * m21 + tz * m22)
     };
 }
+
 // Simple struct for rendering
+enum Object {
+    ARC,
+    SEARCH,
+    PICKUP,
+    PLAYER,
+    NONE
+};
 struct RenderEntity {
     Vector3 pos;
     float dist;
     ptr vt{};
+    enum Object type = Object::NONE;
 };
 
 // Standard UE5 WorldToScreen

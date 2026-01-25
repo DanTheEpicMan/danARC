@@ -4,7 +4,7 @@
 #define pr inline uintptr_t
 #define ptr uintptr_t
 
-#define VT_FIND_MODE true //use if you need to find VTs (will show offsets on objetcs)
+#define VT_FIND_MODE false //use if you need to find VTs (will show offsets on objetcs)
 
 namespace off {
     // From UWorld
@@ -22,6 +22,20 @@ namespace off {
 
     // Known VTables
     pr VT_PLAYER = 0x14bde8a30;
+}
+
+namespace vtabels {
+    // //All the same, dont know if its  going to stay like that
+    // pr roller = 0x14bcd5cb0;
+    // pr wasp = 0x14bcd5cb0;
+    // pr jumper = 0x14bcd5cb0;
+
+    pr ARC = 0x14bcd5cb0;
+
+    pr SEARCH = 0x14bcc2a30;
+    pr PICKUP = 0x14bc8920;
+
+    pr PLAYER = 0x14bde8a30;
 }
 
 #endif
