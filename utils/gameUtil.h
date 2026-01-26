@@ -10,6 +10,11 @@ struct Vector3 {
                          std::pow(y - other.y, 2) +
                          std::pow(z - other.z, 2));
     }
+
+    bool operator==(const Vector3 & other) const {
+        if (x == other.x && y == other.y && z == other.z) return true;
+        return false;
+    };
 };
 
 struct Vector2 {

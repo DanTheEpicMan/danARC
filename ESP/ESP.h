@@ -12,41 +12,53 @@
 #include "../offsets.h"
 
 
-// Add these to your helper functions or top of main
 void DrawRadar(Vector3 camPos, const std::vector<RenderEntity>& entities, const Matrix4x4& viewMatrix) {
-    float radarCenterX = 150; // Moved slightly so it's not tucked in the corner
+    float radarCenterX = 150;
     float radarCenterY = 150;
     float radarRadius = 100;
-    float scale = 200.0f; // 1 unit on radar = 200 units in world (2 meters)
+    float scale = 200.0f;
 
-    DrawCircleFilled(radarCenterX, radarCenterY, radarRadius+2, IM_COL32(0, 0, 0, 150));
+    // Background
+    DrawCircleFilled(radarCenterX, radarCenterY, radarRadius + 2, IM_COL32(0, 0, 0, 150));
     DrawCircleFilled(radarCenterX, radarCenterY, radarRadius, IM_COL32(0, 0, 0, 150));
 
+    // Crosshairs
     DrawLine(radarCenterX - radarRadius, radarCenterY, radarCenterX + radarRadius, radarCenterY, IM_COL32(255, 255, 255, 50), 1);
     DrawLine(radarCenterX, radarCenterY - radarRadius, radarCenterX, radarCenterY + radarRadius, IM_COL32(255, 255, 255, 50), 1);
 
-    float fwdX = viewMatrix.m[0][2];
-    float fwdY = viewMatrix.m[1][2];
+    // Extract camera yaw
+    float rightX = viewMatrix.m[0][0];
+    float rightY = viewMatrix.m[1][0];
+    float camYaw = atan2(rightY, rightX);
 
-    float dirLineX = radarCenterX + (fwdY * 40.0f); // 40 is line length
-    float dirLineY = radarCenterY - (fwdX * 40.0f);
-
-    DrawLine(radarCenterX, radarCenterY, dirLineX, dirLineY, IM_COL32(0, 255, 255, 255), 2);
+    float cosA = cos(camYaw);
+    float sinA = sin(camYaw);
 
     for (const auto& ent : entities) {
-        // Only draw relevant stuff on radar
         if (ent.type == Object::PICKUP || ent.type == Object::SEARCH) continue;
         if (ent.dist > radarRadius * scale) continue;
 
-        // Calculate relative world position
         float deltaX = ent.pos.x - camPos.x;
         float deltaY = ent.pos.y - camPos.y;
 
-        // Map to Radar (North-Up Logic)
-        float screenX = radarCenterX + (deltaY / scale);
-        float screenY = radarCenterY - (deltaX / scale);
+        // Rotate by camera yaw
+        float rotatedX = deltaX * cosA + deltaY * sinA;
+        float rotatedY = -deltaX * sinA + deltaY * cosA;
 
-        // Determine Color
+        // FLIPPED: changed signs here
+        float screenX = radarCenterX + rotatedX / scale;
+        float screenY = radarCenterY + rotatedY / scale;
+
+        // Clamp to radar circle
+        float dx = screenX - radarCenterX;
+        float dy = screenY - radarCenterY;
+        float dist = sqrt(dx * dx + dy * dy);
+        if (dist > radarRadius - 3) {
+            float clampScale = (radarRadius - 3) / dist;
+            screenX = radarCenterX + dx * clampScale;
+            screenY = radarCenterY + dy * clampScale;
+        }
+
         ImU32 color = IM_COL32(255, 255, 255, 255);
         if (ent.type == Object::PLAYER) color = IM_COL32(255, 0, 0, 255);
         else if (ent.type == Object::ARC) color = IM_COL32(255, 255, 0, 255);
@@ -54,7 +66,6 @@ void DrawRadar(Vector3 camPos, const std::vector<RenderEntity>& entities, const 
         DrawCircleFilled(screenX, screenY, 3, color);
     }
 
-    // 5. Draw "You" (Center dot)
     DrawCircleFilled(radarCenterX, radarCenterY, 4, IM_COL32(0, 255, 0, 255));
 }
 
