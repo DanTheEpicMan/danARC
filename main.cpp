@@ -49,10 +49,12 @@ int main() {
         if (ProcessId == 0) {continue;};
 
         ptr uworld = GetUWorld(BaseAddress);
-        if (!isValidPtr(uworld)) {/*std::this_thread::sleep_for(std::chrono::seconds(1));*/ continue;}
+        if (!isValidPtr(uworld)) {std::cout << "[-] Invalid Uworld " << uworld << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(10)); continue;}
 
         ptr viewInfoPtr = ReadMemory<ptr>(uworld + off::CACHED_VIEW_INFO_PTR);
-        if (!isValidPtr(viewInfoPtr)) {firstEntities.clear(); continue;};
+        if (!isValidPtr(viewInfoPtr)) {std::cout << "[-] Invalid viewInfoPtr " << viewInfoPtr << std::endl;
+            firstEntities.clear(); std::this_thread::sleep_for(std::chrono::seconds(10)); continue;};
 
         viewMatrix = ReadMemory<Matrix4x4>(viewInfoPtr + 0); //ViewMatrix (Cam Pos)
         projMatrix = ReadMemory<Matrix4x4>(viewInfoPtr + 256); //ViewProjectionMatrix (WorldToScreen)
@@ -61,11 +63,13 @@ int main() {
 
         // Actors Loop
         ptr persistentLevel = ReadMemory<ptr>(uworld + off::PERSISTENT_LEVEL);
-        if (!isValidPtr(persistentLevel)) {firstEntities.clear(); continue;};
+        if (!isValidPtr(persistentLevel)) {std::cout << "[-] Invalid persistentLevel " << persistentLevel << std::endl;
+            firstEntities.clear(); std::this_thread::sleep_for(std::chrono::seconds(10)); continue;};
 
         ptr actors = ReadMemory<ptr>(persistentLevel + off::ACTORS_PTR);
         int actorsCount = ReadMemory<int>(persistentLevel + off::ACTORS_PTR + 0x8);
-        if (!(isValidPtr(actors) && actorsCount > 0 && actorsCount < 5000)) {firstEntities.clear(); continue;};
+        if (!(isValidPtr(actors) && actorsCount > 0 && actorsCount < 5000)) {std::cout << "[-] Invalid actors array " << actors << std::endl;
+            firstEntities.clear(); std::this_thread::sleep_for(std::chrono::seconds(10)); continue;};
 
         // Loop
         for (int a = 0; a < actorsCount; a++) {

@@ -8,32 +8,28 @@
 
 namespace off {
     // From UWorld
-    pr PERSISTENT_LEVEL = 0xF8;
-    pr CACHED_VIEW_INFO_PTR = 0x198;
+    pr PERSISTENT_LEVEL = 0xF8; //same on 1/20 and 1/27
+    pr CACHED_VIEW_INFO_PTR = 0x220; //was 0x198
 
     // From PersistentLevel (ULevel)
-    pr ACTORS_PTR = 0x108;
+    pr ACTORS_PTR = 0x108; //same on 1/20 and 1/27
 
     // From Actor
-    pr ROOT_COMPONENT_PTR = 0x228;
+    pr ROOT_COMPONENT_PTR = 0x238; //0x228;
 
     // From SceneComponent (RootComponent)
-    pr POS_PTR = 0x1D0;
+    pr POS_PTR = 0x248;//0x1D0;
 
 }
 
 namespace vtabels {
-    // //All the same, dont know if its  going to stay like that
-    // pr roller = 0x14bcd5cb0;
-    // pr wasp = 0x14bcd5cb0;
-    // pr jumper = 0x14bcd5cb0;
 
-    pr ARC = 0x14bcd5cb0;
+    pr ARC = 0x14b;
 
-    pr SEARCH = 0x14bcc2a30;
-    pr PICKUP = 0x14bc8920;
+    pr SEARCH = 0x14b;
+    pr PICKUP = 0x14b;
 
-    pr PLAYER = 0x14bde8a30;
+    pr PLAYER = 0x14b;
 }
 
 #endif
