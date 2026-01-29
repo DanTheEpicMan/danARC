@@ -75,22 +75,16 @@ pid_t FindGamePID() {
 }
 
 Vector3 GetCameraLocation(const Matrix4x4& viewMatrix) {
-    // The View Matrix transforms World -> Camera.
-    // It is effectively: [ R   0 ]
-    //                    [ T   1 ]
-    // To get the Camera World Position, we calculate: -Transpose(R) * T
+    // Column-major: indices transposed
+    double m00 = viewMatrix.m[0][0], m01 = viewMatrix.m[1][0], m02 = viewMatrix.m[2][0];
+    double m10 = viewMatrix.m[0][1], m11 = viewMatrix.m[1][1], m12 = viewMatrix.m[2][1];
+    double m20 = viewMatrix.m[0][2], m21 = viewMatrix.m[1][2], m22 = viewMatrix.m[2][2];
 
-    // Assuming UE5 Column-Major layout where m[3] is the translation column:
-    double m00 = viewMatrix.m[0][0], m01 = viewMatrix.m[0][1], m02 = viewMatrix.m[0][2];
-    double m10 = viewMatrix.m[1][0], m11 = viewMatrix.m[1][1], m12 = viewMatrix.m[1][2];
-    double m20 = viewMatrix.m[2][0], m21 = viewMatrix.m[2][1], m22 = viewMatrix.m[2][2];
+    // Translation now in row 3 (was column 3)
+    double tx = viewMatrix.m[0][3];
+    double ty = viewMatrix.m[1][3];
+    double tz = viewMatrix.m[2][3];
 
-    // Translation vector (usually the 4th column in UE / OpenGL style)
-    double tx = viewMatrix.m[3][0];
-    double ty = viewMatrix.m[3][1];
-    double tz = viewMatrix.m[3][2];
-
-    // Calculate inverted position
     return Vector3{
         -(tx * m00 + ty * m01 + tz * m02),
         -(tx * m10 + ty * m11 + tz * m12),
@@ -113,15 +107,14 @@ struct RenderEntity {
     enum Object type = Object::NONE;
 };
 
-// Standard UE5 WorldToScreen
-// Returns true if on screen, false if behind
 bool WorldToScreen(Vector3 world, Vector2& screen, Matrix4x4 matrix) {
-    float w = matrix.m[0][3] * world.x + matrix.m[1][3] * world.y + matrix.m[2][3] * world.z + matrix.m[3][3];
+
+    float w = matrix.m[3][0] * world.x + matrix.m[3][1] * world.y + matrix.m[3][2] * world.z + matrix.m[3][3];
 
     if (w < 0.01f) return false; // Behind camera
 
-    float x = matrix.m[0][0] * world.x + matrix.m[1][0] * world.y + matrix.m[2][0] * world.z + matrix.m[3][0];
-    float y = matrix.m[0][1] * world.x + matrix.m[1][1] * world.y + matrix.m[2][1] * world.z + matrix.m[3][1];
+    float x = matrix.m[0][0] * world.x + matrix.m[0][1] * world.y + matrix.m[0][2] * world.z + matrix.m[0][3];
+    float y = matrix.m[1][0] * world.x + matrix.m[1][1] * world.y + matrix.m[1][2] * world.z + matrix.m[1][3];
 
     float invW = 1.0f / w;
     float ndc_x = x * invW;
