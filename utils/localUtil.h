@@ -88,38 +88,48 @@ struct RenderEntity {
     ptr vt{};
     enum Object type = Object::NONE;
 };
-Vector3 GetCameraLocation(const Matrix4x4& viewMatrix) {
-    // Rotation matrix - unchanged
-    double m00 = viewMatrix.m[0][0], m01 = viewMatrix.m[0][1], m02 = viewMatrix.m[0][2];
-    double m10 = viewMatrix.m[1][0], m11 = viewMatrix.m[1][1], m12 = viewMatrix.m[1][2];
-    double m20 = viewMatrix.m[2][0], m21 = viewMatrix.m[2][1], m22 = viewMatrix.m[2][2];
 
-    // Translation - tz moved from [3][2] to [3][3]
-    double tx = viewMatrix.m[3][0];
-    double ty = viewMatrix.m[3][1];
-    double tz = viewMatrix.m[3][3];  // WAS m[3][2]
 
-    return Vector3{
-        -(tx * m00 + ty * m01 + tz * m02),
-        -(tx * m10 + ty * m11 + tz * m12),
-        -(tx * m20 + ty * m21 + tz * m22)
-    };
-}
 
-// WorldToScreen - revert to original but swap z/w access in the w calculation
-bool WorldToScreen(Vector3 world, Vector2& screen, Matrix4x4 matrix) {
-    // w calculation: z component now at [2][3], w at [3][2] - or just use [3][3] for the constant
-    float w = matrix.m[0][3] * world.x + matrix.m[1][3] * world.y + matrix.m[3][3] * world.z + matrix.m[2][3];
+inline Vector2 WorldToScreen(Vector3 WorldLocation, FminimalViewInfo CameraInfo, int Width, int Height) {
+    Vector3 Delta = WorldLocation - CameraInfo.Location;
 
-    if (w < 0.01f) return false;
+    double Pi = 3.14159265358979323846;
+    double Yaw = CameraInfo.Rotation.y * Pi / 180.0;      // Changed Y to y
+    double Pitch = CameraInfo.Rotation.x * Pi / 180.0;    // Changed X to x
 
-    float x = matrix.m[0][0] * world.x + matrix.m[1][0] * world.y + matrix.m[2][0] * world.z + matrix.m[3][0];
-    float y = matrix.m[0][1] * world.x + matrix.m[1][1] * world.y + matrix.m[2][1] * world.z + matrix.m[3][1];
+    Vector3 Forward = Vector3(
+        cos(Pitch) * cos(Yaw),
+        cos(Pitch) * sin(Yaw),
+        sin(Pitch)
+    );
 
-    float invW = 1.0f / w;
-    screen.x = (SCREEN_W / 2.0f) * (1.0f + x * invW);
-    screen.y = (SCREEN_H / 2.0f) * (1.0f - y * invW);
-    return true;
+    Vector3 Right = Vector3(
+        -sin(Yaw),
+        cos(Yaw),
+        0.0
+    );
+
+    Vector3 Up = Vector3(
+        -sin(Pitch) * cos(Yaw),
+        -sin(Pitch) * sin(Yaw),
+        cos(Pitch)
+    );
+
+    double CamX = Delta.Dot(Right);
+    double CamY = Delta.Dot(Up);
+    double CamZ = Delta.Dot(Forward);
+
+    if (CamZ < 1.0) return Vector2(-9999.0, -9999.0);
+
+    double AspectRatio = (double)Width / (double)Height;
+    double FovRad = CameraInfo.FOV * Pi / 180.0;  // Changed FieldOfView to FOV
+    double TanHalfFov = tan(FovRad / 2.0);
+
+    double ScreenX = (Width / 2.0) + (CamX / (CamZ * TanHalfFov * AspectRatio)) * (Width / 2.0);
+    double ScreenY = (Height / 2.0) - (CamY / (CamZ * TanHalfFov)) * (Height / 2.0);
+
+    return Vector2(ScreenX, ScreenY);
 }
 
 #endif //DANARC_LOCALUTIL_H

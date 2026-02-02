@@ -7,9 +7,10 @@
 #define VT_FIND_MODE true //use if you need to find VTs (will show offsets on objetcs)
 
 namespace off {
-    // From UWorld
+    // From UWorld : "class World : public Object"
     pr PERSISTENT_LEVEL = 0xD0;//0xF8; //same on 1/20 and 1/27
-    pr CACHED_VIEW_INFO_PTR = 0x1C8; //0x220; //was 0x198
+    pr CACHED_VIEW_INFO_PTR = 0x1A0; //0x220; //was 0x198
+        pr CACHED_POS_PTR = 0x0;
 
     // From PersistentLevel (ULevel)
     pr ACTORS_PTR = 0x108; //same on 1/20 and 1/27, 1/28
@@ -24,12 +25,12 @@ namespace off {
 
 namespace vtabels {
 
-    pr ARC = 0x14b;
+    pr ARC = 0x14bd8bc30;
 
-    pr SEARCH = 0x14b;
-    pr PICKUP = 0x14b;
+    pr SEARCH = 0x14b784a0;
+    pr PICKUP = 0x14bd3eb30;
 
-    pr PLAYER = 0x14b;
+    pr PLAYER = 0x14be8ed00;
 }
 
 #endif

@@ -12,7 +12,7 @@
 #include "../offsets.h"
 
 
-void DrawRadar(Vector3 camPos, const std::vector<RenderEntity>& entities, const Matrix4x4& viewMatrix) {
+void DrawRadar(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraInfo) {
     float radarCenterX = 150;
     float radarCenterY = 150;
     float radarRadius = 100;
@@ -26,26 +26,22 @@ void DrawRadar(Vector3 camPos, const std::vector<RenderEntity>& entities, const 
     DrawLine(radarCenterX - radarRadius, radarCenterY, radarCenterX + radarRadius, radarCenterY, IM_COL32(255, 255, 255, 50), 1);
     DrawLine(radarCenterX, radarCenterY - radarRadius, radarCenterX, radarCenterY + radarRadius, IM_COL32(255, 255, 255, 50), 1);
 
-    // Extract camera yaw
-    float rightX = viewMatrix.m[0][0];
-    float rightY = viewMatrix.m[1][0];
-    float camYaw = atan2(rightY, rightX);
-
-    float cosA = cos(camYaw);
-    float sinA = sin(camYaw);
+    // Convert yaw from degrees to radians
+    float yawRad = cameraInfo.Rotation.y * 3.14159265358979323846f / 180.0f;
+    float cosA = cos(yawRad);
+    float sinA = sin(yawRad);
 
     for (const auto& ent : entities) {
         if (ent.type == Object::PICKUP || ent.type == Object::SEARCH) continue;
         if (ent.dist > radarRadius * scale) continue;
 
-        float deltaX = ent.pos.x - camPos.x;
-        float deltaY = ent.pos.y - camPos.y;
+        float deltaX = ent.pos.x - cameraInfo.Location.x;
+        float deltaY = ent.pos.y - cameraInfo.Location.y;
 
         // Rotate by camera yaw
         float rotatedX = deltaX * cosA + deltaY * sinA;
         float rotatedY = -deltaX * sinA + deltaY * cosA;
 
-        // FLIPPED: changed signs here
         float screenX = radarCenterX + rotatedX / scale;
         float screenY = radarCenterY + rotatedY / scale;
 
@@ -69,43 +65,45 @@ void DrawRadar(Vector3 camPos, const std::vector<RenderEntity>& entities, const 
     DrawCircleFilled(radarCenterX, radarCenterY, 4, IM_COL32(0, 255, 0, 255));
 }
 
-void DrawESP(Matrix4x4 projMatrix, const std::vector<RenderEntity>& entities, double maxArcDist, double maxLootDist) {
+void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraInfo, double maxArcDist, double maxLootDist, int screenWidth, int screenHeight) {
     for (const auto& ent : entities) {
         Vector2 s;
         ImU32 color{};
-        if (WorldToScreen(ent.pos, s, projMatrix)) {
 
+        // Call WorldToScreen with view matrix
+        s = WorldToScreen(ent.pos, cameraInfo, screenWidth, screenHeight);
 
+        // Check if point is on screen (WorldToScreen returns -9999 if behind camera)
+        if (s.x > -9000 && s.y > -9000) {
             float distM = ent.dist / 100.0f;
             if (distM < 1.0f) distM = 1.0f;
 
+#if VT_FIND_MODE
+            char vtBuf[64];
+            sprintf(vtBuf, "0x%lx [%.0fm]", ent.vt, distM);
+            DrawTextImGui(s.x, s.y, IM_COL32(255, 255, 255, 255), vtBuf);
+#else
             if (ent.type == Object::PLAYER) {
                 color = IM_COL32(255, 50, 50, 255);
 
-                float headHeight = 180.0f;
-                // Project head and feet to get precise box height
-                Vector3 headPos = ent.pos; headPos.z += 120; // Approx top
-                Vector3 feetPos = ent.pos; feetPos.z -= 60; // Approx bottom
+                Vector3 headPos = ent.pos; headPos.z += 120;
+                Vector3 feetPos = ent.pos; feetPos.z -= 60;
 
-#if VT_FIND_MODE
-                char vtBuf[32];
-                sprintf(vtBuf, "0x%lx", ent.vt);
-                DrawTextImGui(s.x, s.y, IM_COL32(255, 255, 255, 255), vtBuf);
-#endif
+                Vector2 sHead = WorldToScreen(headPos, cameraInfo, screenWidth, screenHeight);
+                Vector2 sFeet = WorldToScreen(feetPos, cameraInfo, screenWidth, screenHeight);
 
-                Vector2 sHead, sFeet;
-                if (WorldToScreen(headPos, sHead, projMatrix) && WorldToScreen(feetPos, sFeet, projMatrix)) {
+                if (sHead.x > -9000 && sHead.y > -9000 &&
+                    sFeet.x > -9000 && sFeet.y > -9000) {
                     float h = sFeet.y - sHead.y;
                     float w = h / 2.0f;
 
                     DrawBox(sHead.x - w/2, sHead.y, w, h, color);
 
-                    // Distance Text
                     char dBuf[32];
                     sprintf(dBuf, "%.0fm", distM);
                     DrawTextCentered(sHead.x - w/2, sHead.y - 15, IM_COL32(255, 255, 255, 255), dBuf);
-                } //if W2S
-            } else { //if player
+                }
+            } else {
                 int radius = 5;
                 if (ent.type == Object::ARC) {
                     if (ent.dist > maxArcDist) continue;
@@ -117,14 +115,14 @@ void DrawESP(Matrix4x4 projMatrix, const std::vector<RenderEntity>& entities, do
                     radius = (1-(ent.dist/maxLootDist)) * 6 + 4;
                 }
 
-                //draw
                 DrawCircleFilled(s.x, s.y, radius, color);
                 char dBuf[32];
                 sprintf(dBuf, "%.0fm", distM);
                 DrawTextCentered(s.x, s.y+radius+1, IM_COL32(255, 255, 255, 255), dBuf);
-            }// else player
-        }//if on screen
-    } //for entities
+            }
+#endif
+        }
+    }
 }
 
 
