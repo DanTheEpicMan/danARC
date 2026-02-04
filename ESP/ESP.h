@@ -56,16 +56,20 @@ void DrawRadar(const std::vector<RenderEntity>& entities, FminimalViewInfo camer
         }
 
         ImU32 color = IM_COL32(255, 255, 255, 255);
-        if (ent.type == Object::PLAYER) color = IM_COL32(255, 0, 0, 255);
-        else if (ent.type == Object::ARC) color = IM_COL32(255, 255, 0, 255);
+        int radius = 3;
+        if (ent.type == Object::PLAYER) {color = IM_COL32(255, 0, 0, 255);}
+        else if (ent.type == Object::ARC) {color = IM_COL32(255, 255, 0, 255);}
+        else if (ent.type == Object::SEARCH) {color = IM_COL32(50, 200, 50, 255); radius = 1;}
+        else if (ent.type == Object::PICKUP) {color = IM_COL32(50, 200, 200, 255); radius = 1;}
 
-        DrawCircleFilled(screenX, screenY, 3, color);
+        DrawCircleFilled(screenX, screenY, radius, color);
     }
 
     DrawCircleFilled(radarCenterX, radarCenterY, 4, IM_COL32(0, 255, 0, 255));
 }
 
 void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraInfo, double maxArcDist, double maxLootDist, int screenWidth, int screenHeight) {
+    bool isDebugMode = isDebugModeAtomic.load();
     for (const auto& ent : entities) {
         Vector2 s;
         ImU32 color{};
@@ -78,16 +82,24 @@ void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraI
             float distM = ent.dist / 100.0f;
             if (distM < 1.0f) distM = 1.0f;
 
-#if VT_FIND_MODE
-            char vtBuf[64];
-            sprintf(vtBuf, "0x%lx [%.0fm]", ent.vt, distM);
-            DrawTextImGui(s.x, s.y, IM_COL32(255, 255, 255, 255), vtBuf);
-#else
+            if (isDebugMode) {
+                char vtBuf[64];
+                sprintf(vtBuf, "0x%lx [%.0fm]", ent.vt, distM);
+                DrawTextImGui(s.x, s.y, IM_COL32(255, 255, 255, 255), vtBuf);
+                continue;
+            }
+
+            //*********** TEST *************
+            if (ent.isDead) {
+                DrawCircleFilled(s.x, s.y, 10, IM_COL32(255, 50, 50, 255));
+            }
+            //*********** TEST *************
+
             if (ent.type == Object::PLAYER) {
                 color = IM_COL32(255, 50, 50, 255);
 
-                Vector3 headPos = ent.pos; headPos.z += 120;
-                Vector3 feetPos = ent.pos; feetPos.z -= 60;
+                Vector3 headPos = ent.pos; headPos.z += 90;
+                Vector3 feetPos = ent.pos; feetPos.z -= 90;
 
                 Vector2 sHead = WorldToScreen(headPos, cameraInfo, screenWidth, screenHeight);
                 Vector2 sFeet = WorldToScreen(feetPos, cameraInfo, screenWidth, screenHeight);
@@ -109,9 +121,13 @@ void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraI
                     if (ent.dist > maxArcDist) continue;
                     color = IM_COL32(200, 200, 50, 255);
                     radius = (1-(ent.dist/maxArcDist)) * 6 + 4;
-                } else if (ent.type == Object::PICKUP || ent.type == Object::SEARCH) {
+                } else if (ent.type == Object::SEARCH) {
                     if (ent.dist > maxLootDist) continue;
                     color = IM_COL32(50, 200, 50, 255);
+                    radius = (1-(ent.dist/maxLootDist)) * 6 + 4;
+                } else if (ent.type == Object::PICKUP) {
+                    if (ent.dist > maxLootDist) continue;
+                    color = IM_COL32(50, 200, 200, 255);
                     radius = (1-(ent.dist/maxLootDist)) * 6 + 4;
                 }
 
@@ -120,7 +136,7 @@ void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraI
                 sprintf(dBuf, "%.0fm", distM);
                 DrawTextCentered(s.x, s.y+radius+1, IM_COL32(255, 255, 255, 255), dBuf);
             }
-#endif
+
         }
     }
 }

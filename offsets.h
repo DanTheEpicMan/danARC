@@ -4,8 +4,6 @@
 #define pr inline uintptr_t
 #define ptr uintptr_t
 
-#define VT_FIND_MODE true //use if you need to find VTs (will show offsets on objetcs)
-
 namespace off {
     // From UWorld : "class World : public Object"
     pr PERSISTENT_LEVEL = 0xD0;//0xF8; //same on 1/20 and 1/27
@@ -27,7 +25,7 @@ namespace vtabels {
 
     pr ARC = 0x14bd8bc30;
 
-    pr SEARCH = 0x14b784a0;
+    pr SEARCH = 0x14bd784a0;
     pr PICKUP = 0x14bd3eb30;
 
     pr PLAYER = 0x14be8ed00;

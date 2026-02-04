@@ -20,11 +20,6 @@ bool enableRadar = true;
 //----------------------------------------------
 
 
-//Handle Destruction
-std::atomic<bool> g_Running(true);
-void SignalHandler(int signum) {
-    g_Running = false;
-}
 
 int main() {
     std::signal(SIGINT, SignalHandler);
@@ -33,13 +28,20 @@ int main() {
         return 1;
     }
 
+    std::thread input_thread(ConsoleInputThread);
+    input_thread.detach();
+
     ProcessId = FindGamePID();
     uintptr_t BaseAddress = 0x140000000;
     std::vector<RenderEntity> firstEntities;
 
     std::cout << "[+] Waiting for game..." << std::endl;
 
+    FrameHistory fh(300);
+
     while (g_Running && !glfwWindowShouldClose(window)) {
+        bool isDebugMode = isDebugModeAtomic.load();
+
         std::vector<RenderEntity> entities;
         Vector3 camPos = {0,0,0};
         FminimalViewInfo viewMatrix {};
@@ -81,30 +83,30 @@ int main() {
         // Read camera data
         camPos = ReadMemory<Vector3>(viewInfoPtr + off::CACHED_POS_PTR);
 
-        for (int i{}; i < 0x300; i += sizeof(ptr)) {
-            ptr presLvlTemp = ReadMemory<ptr>(uworld + i);
-            if (!isValidPtr(presLvlTemp)) continue;
-            for (int j{}; j < 0x300; j += sizeof(ptr)) {
-                ptr arctorsTemp = ReadMemory<ptr>(presLvlTemp + j);
-                int actorsCountTemp = ReadMemory<ptr>(presLvlTemp + j + 0x8);
-                if (!(actorsCountTemp > 40 && actorsCountTemp < 100)) continue;
-
-                bool goodList = true;
-
-                for (int a = 0; a < actorsCountTemp; a++) {
-                    ptr actorTemp = ReadMemory<ptr>(arctorsTemp + (a * 0x8));
-                    if (!isValidPtr(actorTemp)) goodList = false;
-                    //do a check to see if you can find the list of bools
-
-                }
-
-                if (goodList) {
-                    std::cout << "Found Possible Offset: " <<
-                        std::hex << i << " " << j << std::dec << std::endl;
-                    std::cout << actorsCountTemp << std::endl;
-                }
-            }
-        }
+        // for (int i{}; i < 0x300; i += sizeof(ptr)) {
+        //     ptr presLvlTemp = ReadMemory<ptr>(uworld + i);
+        //     if (!isValidPtr(presLvlTemp)) continue;
+        //     for (int j{}; j < 0x300; j += sizeof(ptr)) {
+        //         ptr arctorsTemp = ReadMemory<ptr>(presLvlTemp + j);
+        //         int actorsCountTemp = ReadMemory<ptr>(presLvlTemp + j + 0x8);
+        //         if (!(actorsCountTemp > 40 && actorsCountTemp < 100)) continue;
+        //
+        //         bool goodList = true;
+        //
+        //         for (int a = 0; a < actorsCountTemp; a++) {
+        //             ptr actorTemp = ReadMemory<ptr>(arctorsTemp + (a * 0x8));
+        //             if (!isValidPtr(actorTemp)) goodList = false;
+        //             //do a check to see if you can find the list of bools
+        //
+        //         }
+        //
+        //         if (goodList) {
+        //             std::cout << "Found Possible Offset: " <<
+        //                 std::hex << i << " " << j << std::dec << std::endl;
+        //             std::cout << actorsCountTemp << std::endl;
+        //         }
+        //     }
+        // }
 
 
         // Actors Loop
@@ -135,7 +137,7 @@ int main() {
             Vector3 pos = ReadMemory<Vector3>(rootComp + off::POS_PTR);
             if (std::abs(pos.x) < 100) continue;
 
-            if (a < firstEntities.size() && firstEntities.at(a).pos == pos) continue;
+            if (a < firstEntities.size() && firstEntities.at(a).pos == pos) continue; //filter out spanw points
 
             double dist = camPos.Dist(pos);
             ptr vt = ReadMemory<ptr>(actor);
@@ -144,32 +146,38 @@ int main() {
             ent.pos = pos;
             ent.dist = (float)dist;
 
-            if (camPos == ent.pos) { //if LP
+            if (camPos.Dist(ent.pos) < 30) { //if LP
                 auto vm_temp = ReadMemory<FminimalViewInfo>(actor + 0xc30 + 0x10);
-                if (vm_temp.FOV < 120.f && vm_temp.FOV > 40.f) { //just in case
+                if (vm_temp.FOV < 120.f && vm_temp.FOV > 20.f) { //just in case
                     viewMatrix = ReadMemory<FminimalViewInfo>(actor + 0xc30 + 0x10);
                     //viewMatrix.Print();
                 }
             }
 
 
+            if (isDebugMode) {
+                ent.vt = vt;
+                if (dist > 15000) continue; // 150m filter
+            } else {
+                if (dist < 300.0f) continue;
 
-    #if VT_FIND_MODE
-            ent.vt = vt;
-            if (dist > 15000) continue; // 150m filter
-    #else
-            if (dist < 300.0f) continue;
+                if (vt == vtabels::PLAYER) ent.type = Object::PLAYER;
+                else if (vt == vtabels::ARC) ent.type = Object::ARC;
+                else if (vt == vtabels::PICKUP) ent.type = Object::PICKUP;
+                else if (vt == vtabels::SEARCH) ent.type = Object::SEARCH;
+                else continue;
+            }
 
-            if (vt == vtabels::PLAYER) ent.type = Object::PLAYER;
-            else if (vt == vtabels::ARC) ent.type = Object::ARC;
-            else if (vt == vtabels::PICKUP) ent.type = Object::PICKUP;
-            else if (vt == vtabels::SEARCH) ent.type = Object::SEARCH;
-            else continue;
-    #endif
             entities.push_back(ent);
         }
 
         if (firstEntities.empty()) firstEntities = entities;
+
+        for (int a{}; a < entities.size(); a++) {
+            if (fh.getOldestPosEnt(a).Dist(entities[a].pos) < 10) entities[a].isDead = true;
+        }
+        fh.add(entities);
+
 
         // Render
         RenderBegin();
@@ -185,6 +193,9 @@ int main() {
     }
 
     std::cout << "[+] Destructing Window" << std::endl;
+
+    close(STDIN_FILENO);  // This will make cin >> command fail/return
+    input_thread.join();
 
     if (ImGui::GetCurrentContext()) {
         if (ImGui::GetIO().BackendRendererUserData)

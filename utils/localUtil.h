@@ -2,6 +2,7 @@
 #define DANARC_LOCALUTIL_H
 #include <cmath>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 
@@ -87,9 +88,37 @@ struct RenderEntity {
     float dist;
     ptr vt{};
     enum Object type = Object::NONE;
+    bool isDead = false;
 };
 
+class FrameHistory {
+private:
+    std::deque<std::vector<RenderEntity>> history;
+    size_t maxFrames;
 
+public:
+    FrameHistory(int size) : maxFrames(size) {}
+
+    void add(std::vector<RenderEntity> frameData) {
+        history.push_back(frameData);
+        // If we exceed x frames, remove the oldest one
+        if (history.size() > maxFrames) {
+            history.pop_front();
+        }
+    }
+
+    // Access the oldest frame directly
+    const std::vector<RenderEntity>& getOldest() {
+        return history.front();
+    }
+
+    Vector3 getOldestPosEnt(int index) {
+        if (!history.empty() && index < history.front().size()) {
+            return history.front()[index].pos;
+        }
+        return Vector3(0, 0, 0);
+    }
+};
 
 inline Vector2 WorldToScreen(Vector3 WorldLocation, FminimalViewInfo CameraInfo, int Width, int Height) {
     Vector3 Delta = WorldLocation - CameraInfo.Location;
@@ -130,6 +159,27 @@ inline Vector2 WorldToScreen(Vector3 WorldLocation, FminimalViewInfo CameraInfo,
     double ScreenY = (Height / 2.0) - (CamY / (CamZ * TanHalfFov)) * (Height / 2.0);
 
     return Vector2(ScreenX, ScreenY);
+}
+
+//Handle Destruction
+inline std::atomic<bool> g_Running(true);
+inline std::atomic<bool> isDebugModeAtomic = false; // The single global state
+
+void SignalHandler(int signum) {
+    g_Running = false;
+}
+
+void ConsoleInputThread() {
+    std::cout << "\n[Input] Type 't' and press Enter to switch modes.\n";
+    std::string command;
+    while (std::cin >> command) { // Blocks until input
+        if (g_Running.load()) break;
+
+        if (command == "t") {
+            isDebugModeAtomic = !isDebugModeAtomic.load();
+            std::cout << "[Input] Mode: " << (isDebugModeAtomic ? "ON" : "OFF") << "\n";
+        }
+    }
 }
 
 #endif //DANARC_LOCALUTIL_H
