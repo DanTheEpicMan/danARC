@@ -6,18 +6,19 @@
 
 namespace off {
     // From UWorld : "class World : public Object"
-    pr PERSISTENT_LEVEL = 0xD0;//0xF8; //same on 1/20 and 1/27
-    pr CACHED_VIEW_INFO_PTR = 0x1A0; //0x220; //was 0x198
+    pr PERSISTENT_LEVEL = 0x130; //0xD0;//0xF8; //same on 1/20 and 1/27
+    pr CACHED_VIEW_INFO_PTR = 0x1f0; //0x1A0; //0x220; //was 0x198
         pr CACHED_POS_PTR = 0x0;
 
     // From PersistentLevel (ULevel)
-    pr ACTORS_PTR = 0x108; //same on 1/20 and 1/27, 1/28
+    // Known as AActor or Actor Array
+    pr ACTORS_PTR = 0x100;//0x108; //same on 1/20 and 1/27, 1/28
 
     // From Actor
-    pr ROOT_COMPONENT_PTR = 0x228; //0x238; //0x228;
+    pr ROOT_COMPONENT_PTR = 0x220; //0x228; //0x238; //0x228;
 
     // From SceneComponent (RootComponent)
-    pr POS_PTR = 0x258; //0x248;//0x1D0;
+    pr POS_PTR = 0x290; //0x258; //0x248;//0x1D0;
 
 }
 

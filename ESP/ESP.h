@@ -27,7 +27,7 @@ void DrawRadar(const std::vector<RenderEntity>& entities, FminimalViewInfo camer
     DrawLine(radarCenterX, radarCenterY - radarRadius, radarCenterX, radarCenterY + radarRadius, IM_COL32(255, 255, 255, 50), 1);
 
     // Convert yaw from degrees to radians
-    float yawRad = cameraInfo.Rotation.y * 3.14159265358979323846f / 180.0f;
+    float yawRad = (cameraInfo.Rotation.y + 90.0f) * 3.14159265358979323846f / 180.0f;
     float cosA = cos(yawRad);
     float sinA = sin(yawRad);
 
@@ -59,8 +59,8 @@ void DrawRadar(const std::vector<RenderEntity>& entities, FminimalViewInfo camer
         int radius = 3;
         if (ent.type == Object::PLAYER) {color = IM_COL32(255, 0, 0, 255);}
         else if (ent.type == Object::ARC) {color = IM_COL32(255, 255, 0, 255);}
-        else if (ent.type == Object::SEARCH) {color = IM_COL32(50, 200, 50, 255); radius = 1;}
-        else if (ent.type == Object::PICKUP) {color = IM_COL32(50, 200, 200, 255); radius = 1;}
+        else if (ent.type == Object::SEARCH) {color = IM_COL32(50, 200, 50, 255); radius = 2;}
+        else if (ent.type == Object::PICKUP) {color = IM_COL32(50, 200, 200, 255); radius = 2;}
 
         DrawCircleFilled(screenX, screenY, radius, color);
     }
@@ -91,7 +91,12 @@ void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraI
 
             //*********** TEST *************
             if (ent.isDead) {
-                DrawCircleFilled(s.x, s.y, 10, IM_COL32(255, 50, 50, 255));
+                if (ent.type == Object::PLAYER || (ent.type == Object::ARC && ent.dist < maxArcDist)) {
+                    int radius = 1-(ent.dist/400)*5;
+                    if (radius < 0) radius = 0;
+                    radius += 5;
+                    DrawCircleFilled(s.x, s.y+5, radius, IM_COL32(255, 50, 50, 255));
+                }
             }
             //*********** TEST *************
 

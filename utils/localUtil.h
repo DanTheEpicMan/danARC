@@ -19,7 +19,7 @@ bool isValidPtr(ptr addr) {
 
 //prob update every game update
 inline uintptr_t GetUWorld(ptr BaseAddr) {
-    ptr uworldPtrBase = ReadMemory<uintptr_t>(BaseAddr + 0xDD0FA88);
+    ptr uworldPtrBase = ReadMemory<uintptr_t>(BaseAddr + 0xDD77B78);
 
     ptr uworldAddr = ReadMemory<uintptr_t>(uworldPtrBase);
 

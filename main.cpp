@@ -37,7 +37,7 @@ int main() {
 
     std::cout << "[+] Waiting for game..." << std::endl;
 
-    FrameHistory fh(300);
+    FrameHistory fh(1000);
 
     while (g_Running && !glfwWindowShouldClose(window)) {
         bool isDebugMode = isDebugModeAtomic.load();
@@ -55,12 +55,15 @@ int main() {
             continue;
         }
 
-        // //Find CACHED_VIEW_INFO_PTR + CACHED_POS_PTR offsets (in practice range)
+        std::cout << std::hex << uworld << std::dec << std::endl;
+
+        // Probobly not working
+        // // //Find CACHED_VIEW_INFO_PTR + CACHED_POS_PTR offsets (in practice range)
         // std::cout << "Start" << std::endl;
-        // for (int i{}; i < 0x300; i += sizeof(ptr)) {
+        // for (int i{}; i < 0x5000; i += sizeof(ptr)) {
         //     ptr vipCheck = ReadMemory<ptr>(uworld + i);
-        //     if (isValidPtr(vipCheck)) continue;
-        //     for (int j{}; j < 0x300; j += sizeof(ptr)) {
+        //     if (!isValidPtr(vipCheck)) continue;
+        //     for (int j{}; j < 0x5000; j += sizeof(ptr)) {
         //         Vector3 posCheck = ReadMemory<Vector3>(vipCheck + j);
         //         if ((posCheck.x > 50000 && posCheck.x < 250000) &&
         //             (posCheck.y > 50000 && posCheck.y < 250000) &&
@@ -73,11 +76,12 @@ int main() {
         // }
 
         ptr viewInfoPtr = ReadMemory<ptr>(uworld + off::CACHED_VIEW_INFO_PTR);
+        std::cout << "VIP: " << std::hex << viewInfoPtr << std::dec << std::endl;
         if (!isValidPtr(viewInfoPtr)) {
             std::cout << "[-] Invalid viewInfoPtr" << std::endl;
             firstEntities.clear();
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-            continue;
+            // std::this_thread::sleep_for(std::chrono::seconds(10));
+            // continue;
         }
 
         // Read camera data
@@ -111,16 +115,19 @@ int main() {
 
         // Actors Loop
         ptr persistentLevel = ReadMemory<ptr>(uworld + off::PERSISTENT_LEVEL);
+        std::cout << "PS: " << std::hex << persistentLevel << std::dec << std::endl;
         if (!isValidPtr(persistentLevel)) {
             firstEntities.clear();
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-            continue;
+            // std::this_thread::sleep_for(std::chrono::seconds(10));
+            // continue;
         }
 
 
 
         ptr actors = ReadMemory<ptr>(persistentLevel + off::ACTORS_PTR);
+        std::cout << "Actors: " << std::hex << actors << std::dec << std::endl;
         int actorsCount = ReadMemory<int>(persistentLevel + off::ACTORS_PTR + 0x8);
+        std::cout << "Actor Count: " << actorsCount << std::endl;
         if (!(isValidPtr(actors) && actorsCount > 0 && actorsCount < 5000)) {
             firstEntities.clear();
             std::this_thread::sleep_for(std::chrono::seconds(10));
@@ -137,7 +144,7 @@ int main() {
             Vector3 pos = ReadMemory<Vector3>(rootComp + off::POS_PTR);
             if (std::abs(pos.x) < 100) continue;
 
-            if (a < firstEntities.size() && firstEntities.at(a).pos == pos) continue; //filter out spanw points
+            if (a < firstEntities.size() && firstEntities.at(a).pos == pos) continue; //filter out spawn points
 
             double dist = camPos.Dist(pos);
             ptr vt = ReadMemory<ptr>(actor);
@@ -147,9 +154,10 @@ int main() {
             ent.dist = (float)dist;
 
             if (camPos.Dist(ent.pos) < 30) { //if LP
-                auto vm_temp = ReadMemory<FminimalViewInfo>(actor + 0xc30 + 0x10);
+                auto vm_temp = ReadMemory<FminimalViewInfo>(actor + 0xc40 + 0x10);
+                vm_temp.Print();
                 if (vm_temp.FOV < 120.f && vm_temp.FOV > 20.f) { //just in case
-                    viewMatrix = ReadMemory<FminimalViewInfo>(actor + 0xc30 + 0x10);
+                    viewMatrix = vm_temp;
                     //viewMatrix.Print();
                 }
             }
@@ -174,7 +182,7 @@ int main() {
         if (firstEntities.empty()) firstEntities = entities;
 
         for (int a{}; a < entities.size(); a++) {
-            if (fh.getOldestPosEnt(a).Dist(entities[a].pos) < 10) entities[a].isDead = true;
+            if (fh.getOldestPosEnt(a).Dist(entities[a].pos) < 50) entities[a].isDead = true;
         }
         fh.add(entities);
 
