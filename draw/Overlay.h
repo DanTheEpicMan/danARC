@@ -11,9 +11,8 @@
 #include "imgui_impl_opengl3.h"
 #include <iostream>
 
-// Screen globals
-int SCREEN_W = 2560;
-int SCREEN_H = 1440;
+#include "../config.h"
+
 GLFWwindow* window = nullptr;
 
 bool InitOverlay() {

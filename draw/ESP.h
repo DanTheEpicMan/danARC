@@ -6,10 +6,11 @@
 #define DANARC_ESP_H
 #include <vector>
 
-#include "../utils/Overlay.h"
+#include "Overlay.h"
+#include "W2S.h"
 #include "../utils/gameUtil.h"
 #include "../utils/localUtil.h"
-#include "../offsets.h"
+#include "../config.h"
 
 
 void DrawRadar(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraInfo) {
@@ -69,7 +70,6 @@ void DrawRadar(const std::vector<RenderEntity>& entities, FminimalViewInfo camer
 }
 
 void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraInfo, double maxArcDist, double maxLootDist, int screenWidth, int screenHeight) {
-    bool isDebugMode = isDebugModeAtomic.load();
     for (const auto& ent : entities) {
         Vector2 s;
         ImU32 color{};
@@ -89,7 +89,6 @@ void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraI
                 continue;
             }
 
-            //*********** TEST *************
             if (ent.isDead) {
                 if (ent.type == Object::PLAYER || (ent.type == Object::ARC && ent.dist < maxArcDist)) {
                     int radius = 1-(ent.dist/400)*5;
@@ -98,7 +97,6 @@ void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraI
                     DrawCircleFilled(s.x, s.y+5, radius, IM_COL32(255, 50, 50, 255));
                 }
             }
-            //*********** TEST *************
 
             if (ent.type == Object::PLAYER) {
                 color = IM_COL32(255, 50, 50, 255);

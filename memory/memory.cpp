@@ -177,3 +177,54 @@ template FminimalViewInfo ReadMemory<FminimalViewInfo>(uintptr_t address);
 
 template char ReadMemory<char>(uintptr_t address);
 template bool ReadMemory<bool>(uintptr_t address);
+
+#include <filesystem>
+#include <fstream>
+namespace fs = std::filesystem;
+
+pid_t FindGamePID() {
+    for (const auto& entry : fs::directory_iterator("/proc")) {
+        if (!entry.is_directory()) continue;
+
+        std::string pid_str = entry.path().filename().string();
+
+        // Check if directory name is a number (PID)
+        if (pid_str.empty() || !isdigit(pid_str[0])) continue;
+
+        try {
+            pid_t pid = std::stoi(pid_str);
+
+            // Count threads in /proc/PID/task
+            std::string task_path = "/proc/" + pid_str + "/task";
+            int thread_count = 0;
+
+            if (fs::exists(task_path)) {
+                for (const auto& task : fs::directory_iterator(task_path)) {
+                    thread_count++;
+                }
+            }
+
+            // Check if process has >100 threads (Unreal Engine indicator)
+            if (thread_count > 100) {
+                // Check process name
+                std::string comm_path = "/proc/" + pid_str + "/comm";
+                std::ifstream comm_file(comm_path);
+                std::string comm_name;
+
+                if (comm_file >> comm_name) {
+                    if (comm_name.find("GameThread") != std::string::npos) {
+                        std::cout << "[+] Found game process: PID " << pid
+                                  << " (" << comm_name << ") with "
+                                  << thread_count << " threads" << std::endl;
+                        return pid;
+                    }
+                }
+            }
+        } catch (...) {
+            continue;
+        }
+    }
+
+    std::cerr << "[-] Game process not found!" << std::endl;
+    return 0;
+}

@@ -17,18 +17,21 @@ set(IMGUI_SOURCES
         ${IMGUI_DIR}/imgui_widgets.cpp
         ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
         ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
-        ESP/ESP.h
+        gamestate/GameState.cpp
+        gamestate/GameState.h
+        utils/localUtil.h
+        utils/gameUtil.h
+        memory/memory.cpp
+        draw/ESP.h
+        draw/Overlay.h
+        draw/W2S.h
 )
 
 # --- 2. ADD EXECUTABLE WITH IMGUI SOURCES ---
 add_executable(danARC
         main.cpp
-        memory/memory.cpp
+        config.h
         memory/memory.h
-        utils/localUtil.h
-        offsets.h
-        utils/gameUtil.h
-        utils/Overlay.h
         ${IMGUI_SOURCES}
 )
 

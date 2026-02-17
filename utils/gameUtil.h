@@ -1,3 +1,8 @@
+/** Contains game struct info
+ * Used by all files (memory, gameState, ESP)
+ * Should remain constant between updates
+ */
+
 #ifndef DANARC_GAMEUTIL_H
 #define DANARC_GAMEUTIL_H
 #include <cmath>

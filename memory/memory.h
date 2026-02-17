@@ -28,6 +28,8 @@ bool WriteMemory(pid_t pid, long address, const T& value);
 // Read a string from memory with maximum length
 std::string ReadString(pid_t pid, long address, size_t maxLength = 128);
 
+pid_t FindGamePID();
+
 // Global variables
 extern pid_t ProcessId;
 extern long BaseAddress;
