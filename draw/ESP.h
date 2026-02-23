@@ -80,12 +80,14 @@ void DrawESP(const std::vector<RenderEntity>& entities, FminimalViewInfo cameraI
         // Check if point is on screen (WorldToScreen returns -9999 if behind camera)
         if (s.x > -9000 && s.y > -9000) {
             float distM = ent.dist / 100.0f;
-            if (distM < 1.0f) distM = 1.0f;
+            //if (distM < 1.0f) distM = 1.0f;
 
             if (isDebugMode) {
-                char vtBuf[64];
-                sprintf(vtBuf, "0x%lx [%.0fm]", ent.vt, distM);
-                DrawTextImGui(s.x, s.y, IM_COL32(255, 255, 255, 255), vtBuf);
+                if (distM < 50) {
+                    char vtBuf[64];
+                    sprintf(vtBuf, "0x%lx [%.0fm]", ent.vt, distM);
+                    DrawTextImGui(s.x, s.y, IM_COL32(255, 255, 255, 255), vtBuf);
+                }
                 continue;
             }
 

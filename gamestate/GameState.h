@@ -85,8 +85,11 @@ private:
     std::vector<RenderEntity> filterEntities(std::vector<RenderEntity> entities, Vector3 camPos);
 
 private:
+    //If you load into practice range, be on 70FOV,
+    //and dont move cam at ALL, position is: 195541 102479 150591
     void scanCamPos(ptr uworld);
 
+    void scanEntityViewInfo(std::vector<RenderEntity> entities, Vector3 camPos);
 };
 
 

@@ -5,7 +5,7 @@
 inline Vector2 WorldToScreen(Vector3 WorldLocation, FminimalViewInfo CameraInfo, int Width, int Height) {
     Vector3 Delta = WorldLocation - CameraInfo.Location;
 
-    double Pi = 3.14159265358979323846;
+    double Pi = 3.1416;
     double Yaw = CameraInfo.Rotation.y * Pi / 180.0;      // Changed Y to y
     double Pitch = CameraInfo.Rotation.x * Pi / 180.0;    // Changed X to x
 

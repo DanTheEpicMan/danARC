@@ -20,12 +20,14 @@ enum Object {
     SEARCH,
     PICKUP,
     PLAYER,
+    PLAYERCAM,
     NONE
 };
 
 struct RenderEntity {
+    ptr actor;
     Vector3 pos;         //Position
-    float dist{};        //Dist, may not be accurate until "filterEntities(...)"
+    double dist{};       //Dist, may not be accurate until "filterEntities(...)"
     FminimalViewInfo vm; //View Matrix
     ptr vt{};            //Virtual Table
     enum Object type = Object::NONE; //vt enum
